@@ -1,8 +1,6 @@
-use core::any::Any;
 
 use defmt::{info, warn};
 use embassy_futures::join::join;
-use embassy_futures::select::select;
 use embassy_time::Timer;
 use trouble_host::prelude::*;
 
