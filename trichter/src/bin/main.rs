@@ -8,6 +8,7 @@
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
+use ag_lcd::LcdDisplay;
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Delay, Duration, Instant, Timer};
@@ -20,7 +21,7 @@ use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::xtensa_lx::interrupt;
 use esp_hal::{clock::CpuClock, gpio::Output};
-use esp_hal::{efuse, i2c, Blocking};
+use esp_hal::{delay, efuse, i2c, Blocking};
 use esp_wifi::ble::controller::BleConnector;
 use trouble_host::prelude::ExternalController;
 use {esp_backtrace as _, esp_println as _};
@@ -80,6 +81,23 @@ async fn main(spawner: Spawner) {
     // let mut edges = 0;
     // let mut start = Instant::now();
     // let mut is_running = false;
+    //
+
+    let rs = Output::new(peripherals.GPIO4, Level::Low, OutputConfig::default());
+    let rw = Output::new(peripherals.GPIO8, Level::Low, OutputConfig::default());
+    let en = Output::new(peripherals.GPIO9, Level::Low, OutputConfig::default());
+
+    let d4 = Output::new(peripherals.GPIO10, Level::Low, OutputConfig::default());
+    let d5 = Output::new(peripherals.GPIO11, Level::Low, OutputConfig::default());
+    let d6 = Output::new(peripherals.GPIO12, Level::Low, OutputConfig::default());
+    let d7 = Output::new(peripherals.GPIO13, Level::Low, OutputConfig::default());
+
+    let mut lcd = LcdDisplay::new(rs, en, delay::Delay::new())
+        .with_half_bus(d4, d5, d6, d7)
+        .with_display(ag_lcd::Display::On)
+        .with_blink(ag_lcd::Blink::On)
+        .with_cursor(ag_lcd::Cursor::On)
+        .build();
 
     let mut num = 0;
     let mut start = Instant::now();
