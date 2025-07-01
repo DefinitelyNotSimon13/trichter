@@ -25,6 +25,7 @@
             esp-generate
             espup
             probe-rs
+            bun
           ];
 
           # Dependencies used during runtime
