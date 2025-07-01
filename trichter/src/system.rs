@@ -7,12 +7,12 @@ use esp_hal::{
 };
 use esp_wifi::EspWifiController;
 
-use crate::{lcd::LcdDriver, sensor::SensorDriver, wifi::WifiManager};
+use crate::{lcd::LcdHandler, sensor::SensorHandler, wifi::WifiManager};
 
 pub struct System<'a> {
     pub wifi: Option<WifiManager<'a>>,
-    pub lcd: Option<LcdDriver<'a>>,
-    pub sensor: Option<SensorDriver<'a>>,
+    pub lcd: Option<LcdHandler<'a>>,
+    pub sensor: Option<SensorHandler<'a>>,
 }
 
 impl System<'_> {
@@ -21,20 +21,20 @@ impl System<'_> {
         esp_hal::init(config)
     }
 
-    pub fn builder(alarm: Alarm<'static>) -> SystemBuilder<'static> {
+    pub fn builder(alarm: Alarm<'static>) -> SystemBuilder {
         SystemBuilder::new(alarm)
     }
 }
 
-pub struct SystemBuilder<'d> {
-    wifi: Option<WifiManager<'d>>,
-    lcd: Option<LcdDriver<'d>>,
-    sensor: Option<SensorDriver<'d>>,
+pub struct SystemBuilder {
+    wifi: Option<WifiManager<'static>>,
+    lcd: Option<LcdHandler<'static>>,
+    sensor: Option<SensorHandler<'static>>,
 }
 
-impl<'d> SystemBuilder<'d> {
+impl SystemBuilder {
     pub fn new(alarm: Alarm<'static>) -> Self {
-        esp_alloc::heap_allocator!(size: 64 * 1024);
+        esp_alloc::heap_allocator!(size: 72 * 1024);
 
         esp_hal_embassy::init(alarm);
         debug!("embassy initialized");
@@ -48,9 +48,9 @@ impl<'d> SystemBuilder<'d> {
 
     pub fn with_wifi(
         mut self,
-        wifi_init: &'d EspWifiController<'d>,
-        wifi: peripherals::WIFI<'d>,
-        bt: peripherals::BT<'d>,
+        wifi_init: &'static EspWifiController<'static>,
+        wifi: peripherals::WIFI<'static>,
+        bt: peripherals::BT<'static>,
     ) -> Self {
         esp_alloc::heap_allocator!(#[unsafe(link_section = ".dram2_uninit")] size: 64 * 1024);
         self.wifi = Some(WifiManager::init(wifi_init, wifi, bt));
@@ -60,24 +60,23 @@ impl<'d> SystemBuilder<'d> {
 
     pub fn with_lcd(
         mut self,
-        rs: impl OutputPin + 'd,
-        rw: impl OutputPin + 'd,
-        en: impl OutputPin + 'd,
-        d4: impl OutputPin + 'd,
-        d5: impl OutputPin + 'd,
-        d6: impl OutputPin + 'd,
-        d7: impl OutputPin + 'd,
+        rs: impl OutputPin + 'static,
+        en: impl OutputPin + 'static,
+        d4: impl OutputPin + 'static,
+        d5: impl OutputPin + 'static,
+        d6: impl OutputPin + 'static,
+        d7: impl OutputPin + 'static,
     ) -> Self {
-        self.lcd = Some(LcdDriver::new(rs, rw, en, d4, d5, d6, d7));
+        self.lcd = Some(LcdHandler::new(rs, en, d4, d5, d6, d7));
         self
     }
 
-    pub fn with_sensor(mut self, pin: impl InputPin + 'd) -> Self {
-        self.sensor = Some(SensorDriver::new(pin));
+    pub fn with_sensor(mut self, pin: impl InputPin + 'static) -> Self {
+        self.sensor = Some(SensorHandler::new(pin));
         self
     }
 
-    pub fn build(self) -> System<'d> {
+    pub fn build(self) -> System<'static> {
         info!("system initialized");
         System {
             wifi: self.wifi,
