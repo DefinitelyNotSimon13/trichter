@@ -1,9 +1,8 @@
 use core::net::Ipv4Addr;
 
-use crate::{mk_static, sensor::RESULTS};
+use crate::{driver::sensor::RESULTS, mk_static};
 use alloc::{format, string::String};
-use bt_hci::controller::ExternalController;
-use defmt::{debug, info, warn};
+use defmt::{debug, error, info, warn};
 use embassy_executor::Spawner;
 use embassy_net::{tcp::TcpSocket, Runner, StackResources};
 use embassy_time::{Duration, Timer};
@@ -11,10 +10,8 @@ use embedded_io_async::Write as _;
 use esp_hal::{
     peripherals::{self},
     rng::Rng,
-    timer::timg::TimerGroup,
 };
 use esp_wifi::{
-    ble::controller::BleConnector,
     wifi::{
         ClientConfiguration, Configuration, Interfaces, WifiController, WifiDevice, WifiEvent,
         WifiState,
@@ -52,10 +49,95 @@ impl WifiManager<'static> {
             // ble_controller,
         }
     }
+
+    pub async fn connect_to_hotspot(self, mut rng: Rng, spawner: Spawner) {
+        let dhcp_config = embassy_net::Config::dhcpv4(Default::default());
+        let seed = (rng.random() as u64) << 32 | rng.random() as u64;
+
+        let (stack, runner) = embassy_net::new(
+            self.interfaces.sta,
+            dhcp_config,
+            mk_static!(StackResources<3>, StackResources::<3>::new()),
+            seed,
+        );
+
+        spawner.spawn(connection(self.wifi_controller)).ok();
+        spawner.spawn(net_task(runner)).ok();
+
+        let mut rx_buffer = [0; 4096];
+        let mut tx_buffer = [0; 4096];
+
+        loop {
+            if stack.is_link_up() {
+                info!("Link is up!");
+                break;
+            }
+            Timer::after(Duration::from_millis(500)).await;
+        }
+
+        info!("Waiting for ip...");
+        loop {
+            if let Some(config) = stack.config_v4() {
+                info!("Got IP: {}", config.address);
+                break;
+            }
+            Timer::after(Duration::from_millis(500)).await;
+        }
+
+        loop {
+            Timer::after(Duration::from_millis(1000)).await;
+
+            let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+            socket.set_timeout(Some(Duration::from_secs(10)));
+
+            let remote_endpoint = (Ipv4Addr::new(84, 164, 215, 229), 31080);
+
+            info!("Sending request to server...");
+            let r = socket.connect(remote_endpoint).await;
+            if let Err(e) = r {
+                error!("connection error {:?}", e);
+                continue;
+            }
+
+            let mut buf = [0; 1024];
+            loop {
+                use embedded_io_async::Write;
+
+                let r = socket
+                    .write_all(b"GET / HTTP/1.0\rHost: www.google.de\r\n\r\n")
+                    .await;
+
+                if let Err(e) = r {
+                    error!("write error: {:?}", e);
+                    break;
+                }
+
+                let n = match socket.read(&mut buf).await {
+                    Ok(0) => {
+                        info!("read EOF");
+                        break;
+                    }
+                    Ok(n) => n,
+                    Err(e) => {
+                        error!("read error: {:?}", e);
+                        break;
+                    }
+                };
+
+                info!("recieved {} bytes:", n);
+                info!("{}", core::str::from_utf8(&buf[..n]).unwrap());
+            }
+            Timer::after(Duration::from_millis(3000)).await;
+        }
+    }
 }
 
 #[embassy_executor::task]
-pub async fn connect_to_hotspot(wifi: WifiManager<'static>, mut rng: Rng, spawner: Spawner) {
+pub async fn connect_to_hotspot_and_provide_endpoint(
+    wifi: WifiManager<'static>,
+    mut rng: Rng,
+    spawner: Spawner,
+) {
     let dhcp_config = embassy_net::Config::dhcpv4(Default::default());
     let seed = (rng.random() as u64) << 32 | rng.random() as u64;
 

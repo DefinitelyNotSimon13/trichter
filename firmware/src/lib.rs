@@ -3,10 +3,7 @@
 
 use esp_hal::gpio::{Output, OutputConfig, OutputPin};
 
-pub mod ble;
 pub mod driver;
-pub mod lcd;
-pub mod sensor;
 pub mod system;
 pub mod wifi;
 

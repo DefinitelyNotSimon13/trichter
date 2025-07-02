@@ -26,7 +26,7 @@ use trichter::{
     mk_static,
     sensor::{SensorHandler, SessionResult, StartupWindow, RESULTS},
     system::System,
-    wifi::{connect_to_hotspot, create_wifi_controller},
+    wifi::{connect_to_hotspot_and_provide_endpoint, create_wifi_controller},
 };
 use {esp_backtrace as _, esp_println as _};
 
@@ -87,7 +87,9 @@ async fn main(spawner: Spawner) {
     // }
     // info!("Should print!");
 
-    spawner.spawn(connect_to_hotspot(wifi, rng, spawner)).ok();
+    spawner
+        .spawn(connect_to_hotspot_and_provide_endpoint(wifi, rng, spawner))
+        .ok();
 
     let mut sensor = system.sensor.take().expect("sensor was not initialized");
     let duration = Duration::from_secs(10);

@@ -7,13 +7,13 @@ use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
 use esp_hal::gpio::{Event, Input, InputConfig, InputPin};
 
-pub struct SensorHandler<'d> {
+pub struct SensorDriver<'d> {
     pub input: Input<'d>,
 }
 
 static PULSE_COUNT: AtomicU32 = AtomicU32::new(0);
 
-impl<'d> SensorHandler<'d> {
+impl<'d> SensorDriver<'d> {
     pub fn new(pin: impl InputPin + 'd) -> Self {
         let mut inp = Input::new(
             pin,
@@ -21,7 +21,7 @@ impl<'d> SensorHandler<'d> {
         );
         inp.listen(Event::RisingEdge);
         debug!("sensor driver initialized");
-        SensorHandler { input: inp }
+        SensorDriver { input: inp }
     }
 
     pub async fn mesaure_session(

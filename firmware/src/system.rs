@@ -7,12 +7,12 @@ use esp_hal::{
 };
 use esp_wifi::EspWifiController;
 
-use crate::{lcd::LcdHandler, sensor::SensorHandler, wifi::WifiManager};
+use crate::{driver::sensor::SensorDriver, lcd::LcdHandler, wifi::WifiManager};
 
 pub struct System<'a> {
     pub wifi: Option<WifiManager<'a>>,
     pub lcd: Option<LcdHandler<'a>>,
-    pub sensor: Option<SensorHandler<'a>>,
+    pub sensor: Option<SensorDriver<'a>>,
 }
 
 impl System<'_> {
@@ -29,7 +29,7 @@ impl System<'_> {
 pub struct SystemBuilder {
     wifi: Option<WifiManager<'static>>,
     lcd: Option<LcdHandler<'static>>,
-    sensor: Option<SensorHandler<'static>>,
+    sensor: Option<SensorDriver<'static>>,
 }
 
 impl SystemBuilder {
@@ -72,7 +72,7 @@ impl SystemBuilder {
     }
 
     pub fn with_sensor(mut self, pin: impl InputPin + 'static) -> Self {
-        self.sensor = Some(SensorHandler::new(pin));
+        self.sensor = Some(SensorDriver::new(pin));
         self
     }
 
