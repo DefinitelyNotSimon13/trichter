@@ -1,17 +1,16 @@
 use defmt::{debug, info};
 use esp_hal::{
     clock::CpuClock,
-    gpio::{InputPin, OutputPin},
+    gpio::InputPin,
     peripherals::{self, Peripherals},
     timer::systimer::Alarm,
 };
 use esp_wifi::EspWifiController;
 
-use crate::{driver::sensor::SensorDriver, lcd::LcdHandler, wifi::WifiManager};
+use crate::{driver::sensor::SensorDriver, wifi::WifiManager};
 
 pub struct System<'a> {
     pub wifi: Option<WifiManager<'a>>,
-    pub lcd: Option<LcdHandler<'a>>,
     pub sensor: Option<SensorDriver<'a>>,
 }
 
@@ -28,7 +27,6 @@ impl System<'_> {
 
 pub struct SystemBuilder {
     wifi: Option<WifiManager<'static>>,
-    lcd: Option<LcdHandler<'static>>,
     sensor: Option<SensorDriver<'static>>,
 }
 
@@ -41,7 +39,6 @@ impl SystemBuilder {
 
         Self {
             wifi: None,
-            lcd: None,
             sensor: None,
         }
     }
@@ -58,19 +55,6 @@ impl SystemBuilder {
         self
     }
 
-    pub fn with_lcd(
-        mut self,
-        rs: impl OutputPin + 'static,
-        en: impl OutputPin + 'static,
-        d4: impl OutputPin + 'static,
-        d5: impl OutputPin + 'static,
-        d6: impl OutputPin + 'static,
-        d7: impl OutputPin + 'static,
-    ) -> Self {
-        self.lcd = Some(LcdHandler::new(rs, en, d4, d5, d6, d7));
-        self
-    }
-
     pub fn with_sensor(mut self, pin: impl InputPin + 'static) -> Self {
         self.sensor = Some(SensorDriver::new(pin));
         self
@@ -80,7 +64,6 @@ impl SystemBuilder {
         info!("system initialized");
         System {
             wifi: self.wifi,
-            lcd: self.lcd,
             sensor: self.sensor,
         }
     }

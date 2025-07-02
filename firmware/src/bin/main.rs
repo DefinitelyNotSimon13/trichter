@@ -6,27 +6,23 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use ag_lcd::Cursor;
-use bt_hci::{cmd::info, uuid::appearance::personal_mobility_device};
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_alloc as _;
 use esp_hal::{
-    delay::Delay,
-    i2c::master::{Config, I2c},
-    peripherals,
     rng::Rng,
     timer::{systimer::SystemTimer, timg::TimerGroup},
-    Blocking,
 };
 use esp_wifi::{init, EspWifiController};
 use trichter::{
-    driver::lcd::Lcd4Bit,
-    mk_static,
-    sensor::{SensorHandler, SessionResult, StartupWindow, RESULTS},
+    driver::{
+        indicator_lights::IndicatorLights,
+        sensor::{SessionResult, StartupWindow, RESULTS},
+    },
+    mk_static, ok_or_panic,
     system::System,
-    wifi::{connect_to_hotspot_and_provide_endpoint, create_wifi_controller},
+    wifi::SessionResultClient,
 };
 use {esp_backtrace as _, esp_println as _};
 
@@ -41,6 +37,13 @@ async fn main(spawner: Spawner) {
     let peripherals = System::init_peripherals();
     esp_alloc::heap_allocator!(size: 72 * 1024);
 
+    let mut indicators = IndicatorLights::new(
+        peripherals.GPIO46,
+        peripherals.GPIO0,
+        peripherals.GPIO45,
+        peripherals.GPIO48,
+    );
+
     let rng = Rng::new(peripherals.RNG);
     let timer1 = TimerGroup::new(peripherals.TIMG0);
     let wifi_init = &*mk_static!(
@@ -51,45 +54,15 @@ async fn main(spawner: Spawner) {
     let mut system = System::builder(timer0.alarm0)
         .with_sensor(peripherals.GPIO9)
         .with_wifi(wifi_init, peripherals.WIFI, peripherals.BT)
-        // .with_lcd(
-        //     peripherals.GPIO47,
-        //     peripherals.GPIO38,
-        //     peripherals.GPIO18,
-        //     peripherals.GPIO17,
-        //     peripherals.GPIO10,
-        //     peripherals.GPIO9,
-        // )
         .build();
 
-    info!("Hello!");
     let wifi = system.wifi.take().unwrap();
 
-    // let mut lcd_driver = system.lcd.take().expect("lcd was not initialized");
-    //
-    // lcd_driver.lcd.display_off();
-    //
-    // lcd_driver.lcd.print("Hello, there!");
+    indicators.initialization_complete().await;
 
-    // let mut lcd = Lcd4Bit::new(
-    //     peripherals.GPIO47,
-    //     peripherals.GPIO38,
-    //     peripherals.GPIO18,
-    //     peripherals.GPIO17,
-    //     peripherals.GPIO10,
-    //     peripherals.GPIO9,
-    //     Delay::new(),
-    //     0,
-    // );
-    // lcd.init();
-    // loop {
-    //     lcd.gotoxy(1, 1);
-    //     lcd.putc('H');
-    // }
-    // info!("Should print!");
+    let stack = wifi.connect_to_hotspot(rng, spawner).await;
 
-    spawner
-        .spawn(connect_to_hotspot_and_provide_endpoint(wifi, rng, spawner))
-        .ok();
+    let mut result_client = ok_or_panic(SessionResultClient::new(stack).await, &mut indicators);
 
     let mut sensor = system.sensor.take().expect("sensor was not initialized");
     let duration = Duration::from_secs(10);
@@ -97,29 +70,17 @@ async fn main(spawner: Spawner) {
         info!("Waiting for session to start...");
 
         let res = sensor
-            .mesaure_session(StartupWindow::default(), Duration::from_millis(100))
+            .mesaure_session(
+                StartupWindow::default(),
+                Duration::from_millis(100),
+                &mut indicators,
+            )
             .await;
         info!(
             "Measured for {}ms with a flow rate of {}L/min",
             res.rate,
             res.duration.as_millis()
         );
-        RESULTS.lock().await.push(res);
-    }
-}
-
-fn scan(i2c: &mut I2c<'_, Blocking>) {
-    for addr in 1..=127 {
-        info!("Scanning Adress {}", addr as u8);
-
-        let res = i2c.read(addr as u8, &mut [0]);
-
-        match res {
-            Ok(_) => {
-                info!("Device found at Address {}", addr as u8);
-                break;
-            }
-            Err(_) => info!("No Device found"),
-        }
+        ok_or_panic(result_client.publish_result(res).await, &mut indicators);
     }
 }

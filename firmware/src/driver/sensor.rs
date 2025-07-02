@@ -1,11 +1,12 @@
 use alloc::vec::Vec;
-use bt_hci::cmd::info;
 use core::sync::atomic::{AtomicU32, Ordering};
-use defmt::{debug, error, info};
+use defmt::{debug, info};
 use embassy_futures::select::{select, Either};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
 use esp_hal::gpio::{Event, Input, InputConfig, InputPin};
+
+use super::indicator_lights::IndicatorLights;
 
 pub struct SensorDriver<'d> {
     pub input: Input<'d>,
@@ -28,12 +29,15 @@ impl<'d> SensorDriver<'d> {
         &mut self,
         startup_window: StartupWindow,
         idle_timeout: Duration,
+        indicators: &mut IndicatorLights,
     ) -> SessionResult {
         let mut first: Instant;
         let mut last: Instant;
         self.input.clear_interrupt();
         loop {
+            indicators.await_session();
             self.input.wait_for_rising_edge().await;
+            indicators.startup_session();
             first = Instant::now();
             last = first;
             PULSE_COUNT.store(1, Ordering::Relaxed);
@@ -63,6 +67,7 @@ impl<'d> SensorDriver<'d> {
                 break;
             }
         }
+        indicators.start_session();
         loop {
             let edge_fut = self.input.wait_for_rising_edge();
             let timeout_fut = Timer::after(idle_timeout);
@@ -76,6 +81,7 @@ impl<'d> SensorDriver<'d> {
                 Either::Second(_) => break,
             }
         }
+        indicators.stop_session();
 
         let pulses = PULSE_COUNT.load(Ordering::Relaxed);
         let duration = last - first;
@@ -86,7 +92,7 @@ impl<'d> SensorDriver<'d> {
             rate,
             duration.as_millis(),
         );
-        SessionResult { duration, rate }
+        SessionResult::new(duration, rate)
     }
 
     pub async fn measure_duration(&mut self, duration: Duration) -> f32 {
@@ -139,6 +145,20 @@ const HISTORY_SIZE: usize = 16;
 pub struct SessionResult {
     pub duration: Duration,
     pub rate: f32,
+    pub volume: f32,
+}
+
+impl SessionResult {
+    pub fn new(duration: Duration, rate: f32) -> Self {
+        let minutes = duration.as_millis() as f32 / 60_000.0;
+        let volume = rate * minutes;
+
+        Self {
+            duration,
+            rate,
+            volume,
+        }
+    }
 }
 
 pub static RESULTS: Mutex<CriticalSectionRawMutex, Vec<SessionResult>> = Mutex::new(Vec::new());

@@ -116,7 +116,6 @@
 										}}
 									>
 										<input type="hidden" name="id" value={result.id} />
-										admin()
 										<label class="input join-item input-ghost p-0.5 focus:border-0">
 											<input type="text" placeholder="Unknown" name="drinker-name" required />
 										</label>

@@ -1,4 +1,20 @@
 services:
+  app:
+    # Build your SvelteKit/Vite app with Bun
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sveltekit_app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/mydatabase
+      - NODE_ENV=production
+      - BETTER_AUTH_SECRET=a6oVpDqumrqE9N7mCQAd3chG9HaxhvLU
+      - BETTER_AUTH_URL=http://localhost:5173
+    restart: unless-stopped
   mongodb:
     image: mongodb/mongodb-community-server:latest
     container_name: mongodb
