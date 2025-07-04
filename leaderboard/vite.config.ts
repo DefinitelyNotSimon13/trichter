@@ -13,6 +13,12 @@ export default defineConfig({
 		}
 	})
 	],
+	optimizeDeps: {
+		include: ['pino']
+	},
+	ssr: {
+		noExternal: ['pino']
+	},
 	test: {
 		projects: [
 			{
