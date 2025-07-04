@@ -5,13 +5,14 @@ import { sentrySvelteKit } from '@sentry/sveltekit';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(),
-		// sentrySvelteKit({
-		// 	sourceMapsUploadOptions: {
-		// 		authToken: process.env.SENTRY_AUTH_TOKEN,
-		// 		org: process.env.SENTRY_ORG,
-		// 		project: process.env.SENTRY_PROJECT
-		// 	}
-		// })
+	sentrySvelteKit({
+		sourceMapsUploadOptions: {
+			org: "trichter",
+			project: "javascript-sveltekit",
+			// store your auth token in an environment variable
+			authToken: process.env.SENTRY_AUTH_TOKEN,
+		}
+	}),
 	],
 	test: {
 		projects: [
