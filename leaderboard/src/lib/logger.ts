@@ -1,6 +1,15 @@
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { browser } from '$app/environment';
 import pino, { type LoggerOptions } from 'pino';
 import type { LokiOptions } from 'pino-loki';
+
+if (!browser) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  // @ts-ignore
+  global.__dirname = __dirname;
+}
 
 
 const defaultLogLevel: LoggerOptions['level'] = 'info';
