@@ -8,3 +8,4 @@ export enum ServerEnvironment {
 export type PinoLogger = Logger & {
 	setLogLevel?: (NODE_ENV: ServerEnvironment) => LoggerOptions['level'];
 }
+

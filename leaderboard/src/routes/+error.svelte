@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { logger } from '$lib/logger';
-	logger.error(page.error);
 </script>
 
 <div class="flex h-screen w-full flex-col items-center justify-center">

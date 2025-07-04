@@ -8,10 +8,6 @@ services:
       SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN}
       SENTRY_ORG: "trichter"
       SENTRY_PROJECT: "javascript-sveltekit"
-      NODE_ENV: 'production'
-    deploy:
-      mode: replicated
-      replicas: 2
     networks:
       - default
     restart: unless-stopped
@@ -79,10 +75,6 @@ services:
     networks:
       - default
     restart: unless-stopped
-    logging:
-      options:
-        max-size: '10m'
-        max-file: '3'
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.prometheus.entrypoints=websecure'
@@ -131,10 +123,6 @@ services:
       - 'traefik.http.routers.grafana.tls.certresolver=myresolver'
       - 'traefik.http.routers.grafana.service=grafana'
       - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
-    logging:
-      options:
-        max-size: '10m'
-        max-file: '3'
 
 volumes:
   letsencrypt:

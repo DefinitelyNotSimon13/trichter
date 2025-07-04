@@ -13,7 +13,7 @@ export function createLogger() {
 		}
 	};
 
-	if (browser) {
+	if (true || browser) {
 		options.transport = {
 			target: 'pino-pretty',
 			options: { colorize: true, levelFirst: true, translateTime: true }
