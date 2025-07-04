@@ -1,0 +1,148 @@
+services:
+  app:
+    image: ghcr.io/definitelynotsimon13/trichter:latest
+    environment:
+      DATABASE_URL: /run/secrets/database_url
+      BETTER_AUTH_SECRET: /run/secrets/better_auth_secret
+      NODE_ENV: 'production'
+    secrets:
+      - database_url
+      - better_auth_secret
+    networks:
+      - default
+    restart: unless-stopped
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.frontend.rule=Host(`${TRAEFIK_BASE_URL}`)'
+      - 'traefik.http.routers.frontend.entrypoints=websecure'
+      - 'traefik.http.routers.frontend.tls.certresolver=myresolver'
+      - 'com.centurylinklabs.watchtower.enable=true'
+
+  traefik:
+    image: traefik:v3.3
+    command:
+      - '--api=true'
+      - '--api.dashboard=true'
+      - '--providers.docker'
+      - '--providers.docker.exposedByDefault=false'
+      - '--entryPoints.websecure.address=:443'
+      - '--certificatesresolvers.myresolver.acme.tlschallenge=true'
+      - '--certificatesresolvers.myresolver.acme.email=simon21.blum@gmail.com'
+      - '--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json'
+      - '--entrypoints.web.address=:80'
+      - '--entrypoints.web.http.redirections.entrypoint.to=websecure'
+      - '--entrypoints.web.http.redirections.entrypoint.scheme=https'
+      - '--metrics.prometheus=true'
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - letsencrypt:/letsencrypt
+    networks:
+      - default
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_BASIC_AUTH}'
+      - 'traefik.http.middlewares.auth.basicauth.removeheader=true'
+      - 'traefik.http.routers.dashboard.entrypoints=websecure'
+      - 'traefik.http.routers.dashboard.tls.certresolver=myresolver'
+      - 'traefik.http.routers.dashboard.rule=Host(`traefik.${TRAEFIK_BASE_URL}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))'
+      - 'traefik.http.routers.dashboard.service=api@internal'
+      - 'traefik.http.routers.dashboard.middlewares=auth'
+
+  watchtower:
+    image: containrrr/watchtower
+    command:
+      - '--label-enable'
+      - '--interval'
+      - '30'
+      - '--rolling-restart'
+    networks:
+      - default
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./config/prometheus/:/etc/prometheus/
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - default
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: '10m'
+        max-file: '3'
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.prometheus.entrypoints=websecure'
+      - 'traefik.http.routers.prometheus.tls.certresolver=myresolver'
+      - 'traefik.http.routers.prometheus.rule=Host(`prometheus.${TRAEFIK_BASE_URL}`)'
+      - 'traefik.http.routers.prometheus.middlewares=auth'
+      - 'traefik.http.routers.prometheus.service=prometheus'
+      - 'traefik.http.services.prometheus.loadbalancer.server.port=9090'
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - default
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    volumes:
+      # - ./config/grafana/provisioning/:/etc/grafana/provisioning/
+      - grafana-data:/var/lib/grafana
+    networks:
+      - default
+    environment:
+      GF_PATHS_PROVISIONING: "/etc/grafana/provisioning"
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: true
+      GF_AUTH_DISABLE_LOGIN_FORM: true
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.grafana.rule=Host(`grafana.${TRAEFIK_BASE_URL}`)'
+      - 'traefik.http.routers.grafana.middlewares=auth'
+      - 'traefik.http.routers.grafana.entrypoints=websecure'
+      - 'traefik.http.routers.grafana.tls.certresolver=myresolver'
+      - 'traefik.http.routers.grafana.service=grafana'
+      - 'traefik.http.services.grafana.loadbalancer.server.port=3000'
+    logging:
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+volumes:
+  letsencrypt:
+  pgdata:
+  prometheus-data:
+  grafana-data:
+
+secrets:
+  database_url:
+    file: ./secrets/database-url
+  better_auth_secret:
+    file: ./secrets/better-auth-secret
+
+networks:
+  default:

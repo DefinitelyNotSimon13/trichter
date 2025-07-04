@@ -1,28 +1,71 @@
 services:
   app:
-    # Build your SvelteKit/Vite app with Bun
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: sveltekit_app
-    ports:
-      - "3000:3000"
-    depends_on:
-      - mongodb
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # container_name: sveltekit_app
+    # depends_on:
+    #   - db
+    # environment:
+    #   - DATABASE_URL=postgres://postgres:postgres@db:5432/trichterdb
+    #   - NODE_ENV=production
+    #   - BETTER_AUTH_SECRET=a6oVpDqumrqE9N7mCQAd3chG9HaxhvLU
+    #   - BETTER_AUTH_URL=https://trichter.hauptspeicher.com/
+    # restart: unless-stopped
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.frontend.rule=Host(`trichter.hauptspeicher.com`)"
+    #   - "traefik.http.routers.frontend.entrypoints=websecure"
+    #   - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+
+  db:
+    image: postgres:latest
+    container_name: postgres_db
+    restart: unless-stopped
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/mydatabase
-      - NODE_ENV=production
-      - BETTER_AUTH_SECRET=a6oVpDqumrqE9N7mCQAd3chG9HaxhvLU
-      - BETTER_AUTH_URL=http://localhost:5173
-    restart: unless-stopped
-  mongodb:
-    image: mongodb/mongodb-community-server:latest
-    container_name: mongodb
-    ports:
-      - "27017:27017"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: trichterdb
     volumes:
-      - mongodb_data:/data/db
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
     restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - '8081:8080'
+
+  reverse-proxy:
+    image: traefik:v3.3
+    command:
+      - '--api.insecure=true'
+      - '--providers.docker'
+      - '--providers.docker.exposedByDefault=false'
+      - '--entryPoints.websecure.address=:443'
+      - '--certificatesresolvers.myresolver.acme.tlschallenge=true'
+      - '--certificatesresolvers.myresolver.acme.email=simon21.blum@gmail.com'
+      - '--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json'
+      - '--entrypoints.web.address=:80'
+      # - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      # - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    ports:
+      - '8000:80'
+      - '4430:443'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - letsencrypt:/letsencrypt
+    labels:
+      - 'traefik.enable=true'
+      # - "traefik.http.routers.dashboard.entrypoints=websecure"
+      # - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
+      - 'traefik.http.routers.dashboard.rule=Host(`traefik.localhost:8000`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))'
+      - 'traefik.http.routers.dashboard.service=api@internal'
 
 volumes:
-  mongodb_data:
+  letsencrypt:
+  pgdata:

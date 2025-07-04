@@ -1,15 +1,20 @@
-import { auth } from "$lib/auth";
-import { connect } from "$lib/server/mongo";
-import { svelteKitHandler } from "better-auth/svelte-kit";
+import { auth } from '$lib/auth';
+import { httpRequestCounter } from '$lib/server/metrics';
+import type { Handle } from '@sveltejs/kit';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-connect()
-	.then((): void => {
-		console.log("MongoDB connection established");
-	})
-	.catch((e) => {
-		console.error("MongoDB connection failed", e);
-	})
 
-export async function handle({ event, resolve }) {
-	return svelteKitHandler({ event, resolve, auth });
-}
+
+export const handle: Handle = async ({ event, resolve }) => {
+	const metricsResolve = async (e: typeof event) => {
+		const res = await resolve(e);
+		httpRequestCounter.labels(e.request.method, e.url.pathname, res.status.toString()).inc();
+		return res;
+	};
+
+	return svelteKitHandler({
+		event,
+		resolve: metricsResolve,
+		auth
+	});
+};
