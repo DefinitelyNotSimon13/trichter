@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { logger } from '$lib/logger';
-	logger.error(page.error);
+	import { loggerPromise } from '$lib/logger';
 </script>
+
+{#await loggerPromise then logger}
+	{@const _ = logger.error(page.error)}
+{/await}
 
 <div class="flex h-screen w-full flex-col items-center justify-center">
 	{#if page.error}
