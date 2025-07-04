@@ -4,10 +4,15 @@ services:
     environment:
       DATABASE_URL: /run/secrets/database_url
       BETTER_AUTH_SECRET: /run/secrets/better_auth_secret
+      SENTRY_DSN: /run/secrets/sentry_dsn
+      SENTRY_AUTH_TOKEN: /run/secrets/sentry_auth_token
+      SENTRY_ORG: "trichter"
+      SENTRY_PROJECT: "javascript-sveltekit"
       NODE_ENV: 'production'
     secrets:
       - database_url
       - better_auth_secret
+      - sentry_dsn
     networks:
       - default
     restart: unless-stopped
@@ -143,6 +148,10 @@ secrets:
     file: ./secrets/database-url
   better_auth_secret:
     file: ./secrets/better-auth-secret
+  sentry_dsn:
+    file: ./secrets/sentry-dsn
+  sentry_auth_token:
+    file: ./secrets/sentry-auth-token
 
 networks:
   default:
