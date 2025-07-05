@@ -1,40 +1,37 @@
 <script lang="ts">
 	import { Check } from '@lucide/svelte';
 	import { enhance } from '$app/forms';
-	import { onMount } from 'svelte';
-	import { source } from 'sveltekit-sse';
 	import type { Run } from '$lib/models/run';
-	import { ServerEvent } from '$lib/models/events';
+	import type { PageData } from './$types';
 
-	let runs: Run[] = $state([]);
+	let { data }: { data: PageData } = $props();
+	let runs: Run[] = data.runs;
 	let totalRuns = $derived(runs.length);
 	let quickest = $derived.by(() => {
 		return runs.length ? runs.reduce((max, curr) => (curr.rate < max.rate ? curr : max)) : null;
 	});
 
-	// let props: PageProps = $props();
+	// async function setupServerSideEvents() {
+	// 	source('/api/v1/runs/sse')
+	// 		.select(ServerEvent.RunCreated)
+	// 		.json()
+	// 		.subscribe((value: Run) => {
+	// 			if (!value) return;
+	// 			runs = [...runs, value];
+	// 		});
 
-	async function setupServerSideEvents() {
-		source('/api/v1/runs/sse')
-			.select(ServerEvent.RunCreated)
-			.json()
-			.subscribe((value: Run) => {
-				if (!value) return;
-				runs = [...runs, value];
-			});
+	// 	source('/api/v1/runs/sse')
+	// 		.select(ServerEvent.RunUpdated)
+	// 		.json()
+	// 		.subscribe((value: Run) => {
+	// 			if (!value) return;
+	// 			runs = runs.map((r) => (r.id === value.id ? value : r));
+	// 		});
+	// }
 
-		source('/api/v1/runs/sse')
-			.select(ServerEvent.RunUpdated)
-			.json()
-			.subscribe((value: Run) => {
-				if (!value) return;
-				runs = runs.map((r) => (r.id === value.id ? value : r));
-			});
-	}
-
-	onMount(() => {
-		setupServerSideEvents();
-	});
+	// onMount(() => {
+	// 	setupServerSideEvents();
+	// });
 </script>
 
 <div class="mt-10 flex flex-col gap-1">
