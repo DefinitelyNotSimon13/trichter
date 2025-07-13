@@ -5,6 +5,7 @@
 	import { source } from 'sveltekit-sse';
 	import type { Run } from '$lib/models/run';
 	import { ServerEvent } from '$lib/models/events';
+	import InstallButton from '$lib/ui/components/InstallButton.svelte';
 
 	let runs: Run[] = $state([]);
 	let totalRuns = $derived(runs.length);
@@ -39,6 +40,7 @@
 
 <div class="mt-10 flex flex-col gap-1">
 	<h1 class="text-primary text-center text-4xl font-bold">Leaderbord</h1>
+	<InstallButton />
 	<div class="stats shadow">
 		<div class="stat">
 			<div class="stat-figure text-primary"></div>
