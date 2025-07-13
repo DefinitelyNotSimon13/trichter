@@ -1,0 +1,19 @@
+{
+	"name": "Trichter Leaderboard",
+	"short_name": "Trichter",
+	"description": "A leaderboard application for tracking beer drinking rates",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#000000",
+	"orientation": "portrait-primary",
+	"icons": [
+		{
+			"src": "/favicon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml"
+		}
+	],
+	"categories": ["entertainment", "social"],
+	"lang": "en"
+}
