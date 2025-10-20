@@ -34,7 +34,7 @@
 		"eslint-plugin-svelte": "^3.10.1",
 		"globals": "^16.3.0",
 		"i": "^0.3.7",
-		"playwright": "^1.53.2",
+		"playwright": "^1.56.1",
 		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
 		"prettier-plugin-tailwindcss": "^0.6.13",
