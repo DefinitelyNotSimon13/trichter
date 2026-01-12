@@ -1,11 +1,19 @@
 import { browser } from '$app/environment';
-import pino, { type LoggerOptions } from 'pino';
+import type { LoggerOptions } from 'pino';
 import type { LokiOptions } from 'pino-loki';
-
 
 const defaultLogLevel: LoggerOptions['level'] = 'info';
 
-export function createLogger() {
+async function createLogger() {
+	if (import.meta.env.SSR) {
+		return {
+			info: (...args: any[]) => console.log(...args),
+			warn: (...args: any[]) => console.warn(...args),
+			error: (...args: any[]) => console.error(...args),
+			debug: (...args: any[]) => console.debug(...args),
+		};
+	}
+	const pino = (await import('pino')).default;
 	const options: LoggerOptions = {
 		level: defaultLogLevel,
 		formatters: {
@@ -39,5 +47,5 @@ export function createLogger() {
 	return pino(options, lokiTransport);
 }
 
-export const logger = createLogger();
+export const loggerPromise = createLogger();
 
