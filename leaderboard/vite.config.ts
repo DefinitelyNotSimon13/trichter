@@ -14,6 +14,9 @@ export default defineConfig({
 		}
 	}),
 	],
+	ssr: {
+		noExternal: ['pino', 'pino-loki', 'pino-std-serializers']
+	},
 	test: {
 		projects: [
 			{
